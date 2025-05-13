@@ -1,20 +1,20 @@
-# Principle2 - HackMyVM (Medium)
+# Principle - HackMyVM (Medium)
 
-![Principle2.png](Principle2.png)
+![Principle.png](Principle.png)
 
 ## Übersicht
 
-*   **VM:** Principle2
-*   **Plattform:** HackMyVM (https://hackmyvm.eu/machines/machine.php?vm=Principle2)
+*   **VM:** Principle
+*   **Plattform:** HackMyVM (https://hackmyvm.eu/machines/machine.php?vm=Principle)
 *   **Schwierigkeit:** Medium
 *   **Autor der VM:** DarkSpirit
 *   **Datum des Writeups:** 18. Dezember 2023
-*   **Original-Writeup:** https://alientec1908.github.io/Principle2_HackMyVM_Medium/
+*   **Original-Writeup:** https://alientec1908.github.io/Principle_HackMyVM_Medium/
 *   **Autor:** Ben C.
 
 ## Kurzbeschreibung
 
-Das Ziel dieser Challenge war es, die User- und Root-Flags der Maschine "Principle2" zu erlangen. Der Weg dorthin begann mit der Entdeckung eines virtuellen Hosts (`thetruthoftalos.hmv`), auf dem eine Webanwendung lief. Diese Anwendung war anfällig für eine Schwachstelle (vermutlich File Upload oder Command Injection über `index.php`), die das Hochladen und Ausführen einer PHP-Webshell (`ben.php`) im `/uploads/`-Verzeichnis ermöglichte. Dies führte zu initialem Zugriff als `www-data`. Die weitere Eskalation zu Root wurde im Bericht nicht vollständig dokumentiert, aber es wurden vielversprechende Vektoren identifiziert: eine SUID-Root-Binary (`/usr/bin/updater`) und eine `sudo`-Regel, die `www-data` erlaubte, `/usr/bin/cat` als Benutzer `talos` auszuführen.
+Das Ziel dieser Challenge war es, die User- und Root-Flags der Maschine "Principle" zu erlangen. Der Weg dorthin begann mit der Entdeckung eines virtuellen Hosts (`thetruthoftalos.hmv`), auf dem eine Webanwendung lief. Diese Anwendung war anfällig für eine Schwachstelle (vermutlich File Upload oder Command Injection über `index.php`), die das Hochladen und Ausführen einer PHP-Webshell (`ben.php`) im `/uploads/`-Verzeichnis ermöglichte. Dies führte zu initialem Zugriff als `www-data`. Die weitere Eskalation zu Root wurde im Bericht nicht vollständig dokumentiert, aber es wurden vielversprechende Vektoren identifiziert: eine SUID-Root-Binary (`/usr/bin/updater`) und eine `sudo`-Regel, die `www-data` erlaubte, `/usr/bin/cat` als Benutzer `talos` auszuführen.
 
 ## Disclaimer / Wichtiger Hinweis
 
@@ -97,4 +97,4 @@ Der Angriff auf die Maschine "Principle2" gliederte sich in folgende Phasen:
 
 ## Tags
 
-`HackMyVM`, `Principle2`, `Medium`, `VHost Enumeration`, `SMB Brute-Force`, `Webshell Upload`, `RCE`, `SUID Binary`, `sudo Exploit`, `Linux`, `Web`, `Privilege Escalation`, `Nginx`, `Samba`, `NFS`, `Apache` (falscher Titel)
+`HackMyVM`, `Principle`, `Medium`, `VHost Enumeration`, `SMB Brute-Force`, `Webshell Upload`, `RCE`, `SUID Binary`, `sudo Exploit`, `Linux`, `Web`, `Privilege Escalation`, `Nginx`, `Samba`, `NFS`, `Apache` (falscher Titel)
